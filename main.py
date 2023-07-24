@@ -9,34 +9,34 @@ from tqdm import tqdm
 from newsapi import NewsApiClient
 import os
 from dotenv import load_dotenv
+import webuiapi
 
 def genImage(prompt, date):
-    url = "http://127.0.0.1:7860"
 
-    payload = {
-        "prompt": f"{prompt}",
-        "steps": 75,
-        "width": 960,
-        "height": 540,
-        "sampler_name": "DPM++ 2M SDE Karras",
-        "negative_prompt": "CyberRealistic_Negative, ((worst quality, low quality), bad_pictures, negative_hand-neg:1.2)"
-    }
+    negative_prompt = "CyberRealistic_Negative, ((worst quality, low quality), bad_pictures, negative_hand-neg:1.2)"
 
-    response = requests.post(url=f'{url}/sdapi/v1/txt2img', json=payload)
+    result = sdapi.txt2img(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        steps=24,
+        width=512,
+        height=512,
+        sampler_name="DPM++ 2M SDE Karras",
+        restore_faces=True
+        )
 
-    r = response.json()
+    image = result.image
 
-    for i in r['images']:
-        image = Image.open(io.BytesIO(base64.b64decode(i.split(",",1)[0])))
+    pnginfo = PngImagePlugin.PngInfo()
+    for key in result.info:
+        pnginfo.add_text(key,str(result.info[key]))
 
-        png_payload = {
-            "image": "data:image/png;base64," + i
-        }
-        response2 = requests.post(url=f'{url}/sdapi/v1/png-info', json=png_payload)
+    image_name =  ''.join(filter(str.isalnum, prompt))
 
-        pnginfo = PngImagePlugin.PngInfo()
-        pnginfo.add_text("parameters", response2.json().get("info"))
-        image.save(f'images/{date}/image_{prompt.replace(" ","_")[:200]}.png', pnginfo=pnginfo)
+    path = Path(f"images/{date}/image_{image_name}.png")
+    path.touch()
+
+    image.save(path, pnginfo=pnginfo)
 
 
 def get_headlines(date):
@@ -50,8 +50,8 @@ def get_headlines(date):
 
         # /v2/top-headlines
         top_headlines = newsapi.get_top_headlines(
-                                              page_size=8,
-                                              language="en"
+                                            page_size=10,
+                                            language="de"
                                               )
 
         with open(f"images/{date}/articles.json", "w") as file:
@@ -91,6 +91,10 @@ def create_today_images():
 
 if __name__ == "__main__":
 
+    sdapi = webuiapi.WebUIApi()
+
     load_dotenv()
 
     create_today_images()
+
+    # genImage("cute cat", date.today().strftime("%Y/%m/%d"))
