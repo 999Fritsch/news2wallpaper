@@ -35,6 +35,8 @@ def genImage(prompt, output_path):
 
     image.save(path, pnginfo=pnginfo)
 
+    return path
+
 
 def get_articles(path, amount):
 
@@ -104,20 +106,19 @@ def create_today_images():
 
     for article in tqdm(filtered_articles):
 
-        genImage(article["title"], path)
+        img_path = genImage(article["title"], path)
 
         print(f"\ncreated image for:\n{article['title']}\n")
+
+        article["path"] = str(img_path)
+
+    with open(path.joinpath("articles.json"), "w") as file:
+        json.dump({"articles":filtered_articles}, file, indent=4)
 
 if __name__ == "__main__":
 
     sdapi = webuiapi.WebUIApi()
 
     load_dotenv()
-
-    # create_today_images()
-
-    # genImage("cute cat", date.today().strftime("%Y/%m/%d"))
-
-    # filter_articles("test/articles.json", "authors copy.json", "test/filtered_articles.json")
 
     create_today_images()
