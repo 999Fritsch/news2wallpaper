@@ -7,6 +7,7 @@ from newsapi import NewsApiClient
 import os
 from dotenv import load_dotenv
 import webuiapi
+import argostranslate.translate
 
 def genImage(prompt, output_path):
 
@@ -102,18 +103,25 @@ def create_today_images():
 
     filtered_articles = filter_articles(path.joinpath("articles.json"))
 
-    print(f"got {len(filtered_articles)} headlines")
+    translated_articles = translate_headlines(filtered_articles)
 
-    for article in tqdm(filtered_articles):
+    print(f"got {len(translated_articles)} headlines")
 
-        img_path = genImage(article["title"], path)
+    for article in tqdm(translated_articles):
+
+        img_path = genImage(article["prompt"], path)
 
         print(f"\ncreated image for:\n{article['title']}\n")
 
         article["path"] = str(img_path)
 
     with open(path.joinpath("articles.json"), "w") as file:
-        json.dump({"articles":filtered_articles}, file, indent=4)
+        json.dump({"articles":translated_articles}, file, indent=4)
+
+def translate_headlines(articles):
+    for article in articles:
+        article["prompt"] = argostranslate.translate.translate(article["title"], "de", "en")
+    return articles
 
 if __name__ == "__main__":
 
