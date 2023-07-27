@@ -16,7 +16,7 @@ def genImage(article, output_path):
         prompt=article["prompt"],
         negative_prompt=negative_prompt,
         steps=24,
-        width=512,
+        width=911,
         height=512,
         sampler_name="DPM++ 2M SDE Karras",
         restore_faces=True
@@ -76,7 +76,7 @@ def create_today_images():
 
     print(f"today is {date_today}")
 
-    path = Path(f"images/{date_today}")
+    path = Path(f"static/images/{date_today}")
     path.mkdir(parents=True, exist_ok=True)
 
     articles = get_articles(path)
@@ -91,18 +91,23 @@ def create_today_images():
 
         img_path = genImage(article, path)
 
+        web_path = img_path.relative_to("static/")
+
         print(f"\ncreated image for:\n{article['title']}\n")
 
         filtered_articles.append({
             "sophoraId": article["sophoraId"],
             "title": article["title"],
             "prompt": article["prompt"],
-            "path": str(img_path),
+            "path": str(web_path),
         })
 
 
     with open(path.joinpath("articles.json"), "w") as file:
         json.dump({"news":filtered_articles}, file)
+
+    with open(path.joinpath("articles_hr.json"), "w") as file:
+        json.dump({"news":filtered_articles}, file, indent=4)
 
 if __name__ == "__main__":
 
