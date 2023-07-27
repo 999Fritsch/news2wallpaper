@@ -1,75 +1,74 @@
 import json
-import requests
-import io
-import base64
-from PIL import Image, PngImagePlugin
+from PIL import PngImagePlugin
 from datetime import date
 from pathlib import Path
 from tqdm import tqdm
-from newsapi import NewsApiClient
 import os
-from dotenv import load_dotenv
+import webuiapi
+import argostranslate.translate
+import requests
 
-def genImage(prompt, date):
-    url = "http://127.0.0.1:7860"
+def genImage(article, output_path):
 
-    payload = {
-        "prompt": f"{prompt}",
-        "steps": 75,
-        "width": 960,
-        "height": 540,
-        "sampler_name": "DPM++ 2M SDE Karras",
-        "negative_prompt": "CyberRealistic_Negative, ((worst quality, low quality), bad_pictures, negative_hand-neg:1.2)"
-    }
+    negative_prompt = "CyberRealistic_Negative, ((worst quality, low quality), bad_pictures, negative_hand-neg:1.2)"
 
-    response = requests.post(url=f'{url}/sdapi/v1/txt2img', json=payload)
+    result = sdapi.txt2img(
+        prompt=article["prompt"],
+        negative_prompt=negative_prompt,
+        steps=24,
+        width=911,
+        height=512,
+        sampler_name="DPM++ 2M SDE Karras",
+        restore_faces=True
+        )
 
-    r = response.json()
+    image = result.image
 
-    for i in r['images']:
-        image = Image.open(io.BytesIO(base64.b64decode(i.split(",",1)[0])))
+    pnginfo = PngImagePlugin.PngInfo()
+    for key in result.info:
+        pnginfo.add_text(key,str(result.info[key]))
 
-        png_payload = {
-            "image": "data:image/png;base64," + i
-        }
-        response2 = requests.post(url=f'{url}/sdapi/v1/png-info', json=png_payload)
+    path = Path(f"{output_path}/image_{article['sophoraId']}.png")
+    path.touch()
 
-        pnginfo = PngImagePlugin.PngInfo()
-        pnginfo.add_text("parameters", response2.json().get("info"))
-        image.save(f'images/{date}/image_{prompt.replace(" ","_")[:200]}.png', pnginfo=pnginfo)
+    image.save(path, pnginfo=pnginfo)
+
+    return path
 
 
-def get_headlines(date):
+def get_articles(path):
 
-    if not os.path.exists(f"images/{date}/articles.json"):
+    if not os.path.exists(f"{path}/articles.json"):
 
         print("Getting todays news from api...")
 
-        # Init
-        newsapi = NewsApiClient(api_key=os.getenv('NEWS_API_KEY'))
+        url = 'https://www.tagesschau.de/api2/homepage/'
+        headers = {'accept': 'application/json'}
 
-        # /v2/top-headlines
-        top_headlines = newsapi.get_top_headlines(
-                                              page_size=8,
-                                              language="en"
-                                              )
+        response = requests.get(url, headers=headers)
 
-        with open(f"images/{date}/articles.json", "w") as file:
-            json.dump(top_headlines, file, indent=4)
+        # Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            data = response.json()  # Convert response to JSON format
+        else:
+            print(f"Request failed with status code: {response.status_code}")
+
+        with open(f"{path}/articles.json", "w") as file:
+            json.dump(data, file, indent=4)
 
     else:
 
-        print(f"Getting todays news from images/{date}/articles.json...")
+        print(f"Getting todays news from {path}/articles.json...")
 
-        with open(f"images/{date}/articles.json") as file:
-            top_headlines = json.load(file)
-        
-    headlines_list = []
-    for article in top_headlines["articles"]:
+        with open(f"{path}/articles.json") as file:
+            data = json.load(file)
 
-        headlines_list.append(article["title"])
+    return data["news"]
 
-    return headlines_list
+def translate_headlines(articles):
+    for article in articles:
+        article["prompt"] = argostranslate.translate.translate(article["title"], "de", "en")
+    return articles
 
 def create_today_images():
 
@@ -77,20 +76,41 @@ def create_today_images():
 
     print(f"today is {date_today}")
 
-    Path(f"images/{date_today}").mkdir(parents=True, exist_ok=True)
+    path = Path(f"static/images/{date_today}")
+    path.mkdir(parents=True, exist_ok=True)
 
-    headlines = get_headlines(date_today)
+    articles = get_articles(path)
 
-    print(f"got {len(headlines)} headlines")
+    translated_articles = translate_headlines(articles)
 
-    for headline in tqdm(headlines):
+    print(f"got {len(translated_articles)} headlines")
 
-        genImage(headline, date_today)
+    filtered_articles = []
 
-        print(f"\ncreated image for:\n{headline}\n")
+    for article in tqdm(translated_articles):
+
+        img_path = genImage(article, path)
+
+        web_path = img_path.relative_to("static/")
+
+        print(f"\ncreated image for:\n{article['title']}\n")
+
+        filtered_articles.append({
+            "sophoraId": article["sophoraId"],
+            "title": article["title"],
+            "prompt": article["prompt"],
+            "path": str(web_path),
+        })
+
+
+    with open(path.joinpath("articles.json"), "w") as file:
+        json.dump({"news":filtered_articles}, file)
+
+    with open(path.joinpath("articles_hr.json"), "w") as file:
+        json.dump({"news":filtered_articles}, file, indent=4)
 
 if __name__ == "__main__":
 
-    load_dotenv()
+    sdapi = webuiapi.WebUIApi()
 
     create_today_images()
