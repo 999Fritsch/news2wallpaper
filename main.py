@@ -1,11 +1,9 @@
 import json
-from PIL import Image, PngImagePlugin
+from PIL import PngImagePlugin
 from datetime import date
 from pathlib import Path
 from tqdm import tqdm
-from newsapi import NewsApiClient
 import os
-from dotenv import load_dotenv
 import webuiapi
 import argostranslate.translate
 import requests
@@ -30,7 +28,7 @@ def genImage(article, output_path):
     for key in result.info:
         pnginfo.add_text(key,str(result.info[key]))
 
-    path = Path(f"{output_path}/image_{[article['sophoraId']]}.png")
+    path = Path(f"{output_path}/image_{article['sophoraId']}.png")
     path.touch()
 
     image.save(path, pnginfo=pnginfo)
@@ -87,21 +85,27 @@ def create_today_images():
 
     print(f"got {len(translated_articles)} headlines")
 
+    filtered_articles = []
+
     for article in tqdm(translated_articles):
 
         img_path = genImage(article, path)
 
         print(f"\ncreated image for:\n{article['title']}\n")
 
-        article["path"] = str(img_path)
+        filtered_articles.append({
+            "sophoraId": article["sophoraId"],
+            "title": article["title"],
+            "prompt": article["prompt"],
+            "path": str(img_path),
+        })
+
 
     with open(path.joinpath("articles.json"), "w") as file:
-        json.dump({"news":translated_articles}, file, indent=4)
+        json.dump({"news":filtered_articles}, file)
 
 if __name__ == "__main__":
 
     sdapi = webuiapi.WebUIApi()
-
-    load_dotenv()
 
     create_today_images()
