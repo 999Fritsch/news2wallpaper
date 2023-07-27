@@ -1,4 +1,5 @@
 /.env
-/images
+*/images
 /newsapi.txt
 /venv
+/__pycache__

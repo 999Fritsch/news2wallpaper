@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>News</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        var current_item_index = 0;
+
+        function updateNews() {
+            $.ajax({
+                url: '/get_news_data',
+                data: {current_item_index: current_item_index},
+                success: function (data) {
+                    $('#news-title').text(data.title);
+                    $('#news-image').attr('src', "{{ url_for('static', filename='') }}" + data.image_path);
+                    current_item_index = data.next_item_index;
+                    setTimeout(updateNews, 6000); // 120000 milliseconds = 2 minutes
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error fetching news data:', error);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            updateNews();
+        });
+    </script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #news-image-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        #news-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #news-title-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black background */
+            padding: 20px 0; /* Adding some padding to the title container */
+            text-align: center;
+            color: white;
+            font-size: 3em; /* Increased font size for the title */
+        }
+
+        #news-title {
+            margin: 0; /* Remove default margins to avoid spacing issues */
+        }
+    </style>
+</head>
+<body>
+    <div id="news-image-container">
+        <img id="news-image" alt="">
+    </div>
+    <div id="news-title-container">
+        <h1 id="news-title"></h1>
+    </div>
+</body>
+</html>
