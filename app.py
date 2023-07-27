@@ -1,11 +1,13 @@
 from flask import Flask, render_template, jsonify, request  
 import json
-import time
+from datetime import date
 
 app = Flask(__name__)
 
+date_today = date.today().strftime("%Y/%m/%d")
+
 def load_data():
-    with open('static/images/2023/07/27/articles.json') as f:
+    with open(f'static/images/{date_today}/articles.json') as f:
         data = json.load(f)
     return data['news']
 
