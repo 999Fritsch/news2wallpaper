@@ -2,9 +2,33 @@
 <html>
 <head>
     <title>News</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        var current_item_index = 0;
+
+        function updateNews() {
+            $.ajax({
+                url: '/get_news_data',
+                data: {current_item_index: current_item_index},
+                success: function (data) {
+                    $('#news-title').text(data.title);
+                    $('#news-image').attr('src', "{{ url_for('static', filename='') }}" + data.image_path);
+                    current_item_index = data.next_item_index;
+                    setTimeout(updateNews, 6000); // 120000 milliseconds = 2 minutes
+                },
+                error: function (xhr, status, error) {
+                    console.error('Error fetching news data:', error);
+                }
+            });
+        }
+
+        $(document).ready(function () {
+            updateNews();
+        });
+    </script>
 </head>
 <body>
-    <h1>{{ title }}</h1>
-    <img src="{{ url_for('static', filename=image_path) }}" alt="{{ title }}" width="400">
+    <h1 id="news-title"></h1>
+    <img id="news-image" alt="" width="400">
 </body>
 </html>
