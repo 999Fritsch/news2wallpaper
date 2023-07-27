@@ -8,13 +8,14 @@ import os
 from dotenv import load_dotenv
 import webuiapi
 import argostranslate.translate
+import requests
 
-def genImage(prompt, output_path):
+def genImage(article, output_path):
 
     negative_prompt = "CyberRealistic_Negative, ((worst quality, low quality), bad_pictures, negative_hand-neg:1.2)"
 
     result = sdapi.txt2img(
-        prompt=prompt,
+        prompt=article["prompt"],
         negative_prompt=negative_prompt,
         steps=24,
         width=512,
@@ -29,9 +30,7 @@ def genImage(prompt, output_path):
     for key in result.info:
         pnginfo.add_text(key,str(result.info[key]))
 
-    image_name =  ''.join(filter(str.isalnum, prompt))
-
-    path = Path(f"{output_path}/image_{image_name}.png")
+    path = Path(f"{output_path}/image_{[article['sophoraId']]}.png")
     path.touch()
 
     image.save(path, pnginfo=pnginfo)
@@ -39,56 +38,39 @@ def genImage(prompt, output_path):
     return path
 
 
-def get_articles(path, amount):
+def get_articles(path):
 
     if not os.path.exists(f"{path}/articles.json"):
 
         print("Getting todays news from api...")
 
-        # Init
-        newsapi = NewsApiClient(api_key=os.getenv('NEWS_API_KEY'))
+        url = 'https://www.tagesschau.de/api2/homepage/'
+        headers = {'accept': 'application/json'}
 
-        # /v2/top-headlines
-        top_articles = newsapi.get_top_headlines(
-                                            page_size=amount,
-                                            language="de"
-                                              )
+        response = requests.get(url, headers=headers)
+
+        # Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            data = response.json()  # Convert response to JSON format
+        else:
+            print(f"Request failed with status code: {response.status_code}")
 
         with open(f"{path}/articles.json", "w") as file:
-            json.dump(top_articles, file, indent=4)
+            json.dump(data, file, indent=4)
 
     else:
 
         print(f"Getting todays news from {path}/articles.json...")
 
         with open(f"{path}/articles.json") as file:
-            top_articles = json.load(file)
+            data = json.load(file)
 
-    return top_articles["articles"]
+    return data["news"]
 
-def filter_articles(articles_file, output_file=None, authors_file="authors.json"):
-
-    if output_file == None:
-        output_file = articles_file
-
-    with open(articles_file) as file:
-            top_articles = json.load(file)
-
-    with open(authors_file) as file:
-            authors_filter = json.load(file)
-
-    # Filter articles based on author and convert to a dictionary
-    filtered_articles = []
-
-    for article in top_articles["articles"]:
-        if article["author"] in authors_filter["authors"]:
-            filtered_articles.append(article)
-
-    with open(f"{output_file}", "w") as file:
-            json.dump({"articles":filtered_articles}, file, indent=4)
-
-    return filtered_articles
-
+def translate_headlines(articles):
+    for article in articles:
+        article["prompt"] = argostranslate.translate.translate(article["title"], "de", "en")
+    return articles
 
 def create_today_images():
 
@@ -99,29 +81,22 @@ def create_today_images():
     path = Path(f"images/{date_today}")
     path.mkdir(parents=True, exist_ok=True)
 
-    get_articles(path, 100)
+    articles = get_articles(path)
 
-    filtered_articles = filter_articles(path.joinpath("articles.json"))
-
-    translated_articles = translate_headlines(filtered_articles)
+    translated_articles = translate_headlines(articles)
 
     print(f"got {len(translated_articles)} headlines")
 
     for article in tqdm(translated_articles):
 
-        img_path = genImage(article["prompt"], path)
+        img_path = genImage(article, path)
 
         print(f"\ncreated image for:\n{article['title']}\n")
 
         article["path"] = str(img_path)
 
     with open(path.joinpath("articles.json"), "w") as file:
-        json.dump({"articles":translated_articles}, file, indent=4)
-
-def translate_headlines(articles):
-    for article in articles:
-        article["prompt"] = argostranslate.translate.translate(article["title"], "de", "en")
-    return articles
+        json.dump({"news":translated_articles}, file, indent=4)
 
 if __name__ == "__main__":
 
