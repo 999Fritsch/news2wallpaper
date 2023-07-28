@@ -11,11 +11,12 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copy all the application files to the container
-COPY main.py app.py /app/
+COPY app.py /app/
 COPY templates/ /app/templates/
 
 # Set the entry point to run the main.py script to generate images
-CMD ["python", "main.py"]
+ENTRYPOINT [ "flask", "run" ]
+CMD [ "--host=0.0.0.0", "--port=5000" ] 
 
 # Expose port 5000 for Flask app
 EXPOSE 5000
