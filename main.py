@@ -10,16 +10,22 @@ import requests
 
 def genImage(article, output_path):
 
-    negative_prompt = "CyberRealistic_Negative, ((worst quality, low quality), bad_pictures, negative_hand-neg:1.2)"
+    negative_prompt = "(worst quality, low quality)"
 
     result = sdapi.txt2img(
         prompt=article["prompt"],
         negative_prompt=negative_prompt,
-        steps=24,
-        width=911,
-        height=512,
-        sampler_name="DPM++ 2M SDE Karras",
-        restore_faces=True
+        steps=40,
+        width=1365,
+        height=768,
+        cfg_scale=4,
+        sampler_name="DPM++ 2M Karras",
+        hr_upscaler=webuiapi.HiResUpscaler.NMKD_Siax_200k,
+        enable_hr=True,
+        hr_resize_x=1920,
+        hr_resize_y=1080,
+        denoising_strength=0.3,
+        hr_second_pass_steps=15
         )
 
     image = result.image
@@ -104,13 +110,15 @@ def create_today_images():
 
 
     with open(path.joinpath("articles.json"), "w") as file:
-        json.dump({"news":filtered_articles}, file)
+        json.dump({"news":articles}, file, indent=4)
 
     with open(path.joinpath("articles_hr.json"), "w") as file:
         json.dump({"news":filtered_articles}, file, indent=4)
 
 if __name__ == "__main__":
 
-    sdapi = webuiapi.WebUIApi()
+    sdapi = webuiapi.WebUIApi(host='127.0.0.1', port=7863)
+
+    sdapi.util_set_model("juggernautXL_v8Rundiffusion.safetensors")
 
     create_today_images()
