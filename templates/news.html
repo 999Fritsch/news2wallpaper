@@ -14,7 +14,7 @@
                     $('#news-title').text(data.title);
                     $('#news-image').attr('src', "{{ url_for('static', filename='') }}" + data.image_path);
                     current_item_index = data.next_item_index;
-                    setTimeout(updateNews, 6000); // 120000 milliseconds = 2 minutes
+                    setTimeout(updateNews, 20000); // 120000 milliseconds = 2 minutes
                 },
                 error: function (xhr, status, error) {
                     console.error('Error fetching news data:', error);
