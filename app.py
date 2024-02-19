@@ -7,7 +7,7 @@ app = Flask(__name__)
 date_today = date.today().strftime("%Y/%m/%d")
 
 def load_data():
-    with open(f'static/images/{date_today}/articles.json') as f:
+    with open(f'static/images/{date_today}/articles_hr.json') as f:
         data = json.load(f)
     return data['news']
 
